@@ -8,71 +8,113 @@
  * http://www.arduino.cc/en/Tutorial/Stepper
  */
 
-// ensure this library description is only included once
+ // ensure this library description is only included once
 #ifndef BYJ48_hpp
 #define BYJ48_hpp
 
+#include "Arduino.h"
 #define STEP_PER_REV 512
+#define STRIDE_PER_STEP 8
 
 class BYJ48 {
+
 public:
     BYJ48() {
-        pinMode(IN1, OUTPUT);
-        pinMode(IN2, OUTPUT);
-        pinMode(IN3, OUTPUT);
-        pinMode(IN4, OUTPUT);
+        IN1 = 8;
+        IN2 = 9;
+        IN3 = 10;
+        IN4 = 11;
+        stride_delay = 2;
+        curIsReverse = false;
+        curStridePos = 0;
+
+        initPin();
     }
 
-    BYJ48(int in1, int in2, int in3,                          in4) {
+    BYJ48(int in1, int in2, int in3, int in4) {
         IN1 = in1;
         IN2 = in2;
         IN3 = in3;
         IN4 = in4;
+        stride_delay = 2;
+        curIsReverse = false;
+        curStridePos = 0;
 
+        initPin();
+    }
+
+    void setSpeed(int targetRPM) {
+        stride_delay = 60 * 1000000 / STEP_PER_REV / STRIDE_PER_STEP / targetRPM;
+        Serial.println(stride_delay);
+    }
+
+    void step(int number_of_steps) {
+        int stepToTake = abs(number_of_steps);
+
+        if (number_of_steps > 0) {
+            curIsReverse = false;
+        } else {
+            curIsReverse = true;
+        }
+
+        while (stepRemain > 0) {
+            takeStep();
+        }
+    }
+
+private:
+    int IN1;    // = 8
+    int IN2;    // = 9
+    int IN3;    // = 10
+    int IN4;    // = 11
+    int stride_delay;
+    bool curIsReverse;
+    unsigned long lastTick;
+    int curStridePos;
+
+
+    void initPin() {
         pinMode(IN1, OUTPUT);
         pinMode(IN2, OUTPUT);
         pinMode(IN3, OUTPUT);
         pinMode(IN4, OUTPUT);
     }
 
-    void setSpeed(long whatSpeed){}
-
-    void step(int stepToTake) {
-        if (stepToTake > 0) {
-            isReverse = false;
+    bool tick() {
+        if (micros() - lastTick >= stride_delay) {
+            return true;
         } else {
-            isReverse = true;
-        }
-
-        for(int i=0; i<abs(stepToTake); i++) {
-            stride();
-            isReverse ? stepToTake++ : stepToTake--;
-            delay(2);
+            return false;
         }
     }
 
-private:
-    int IN1 = 8;
-    int IN2 = 9;
-    int IN3 = 10;
-    int IN4 = 11;
-    bool isReverse = false;
-
-    // SPEC: 1/64(5.625°) IMPLEMENT: 1/512
-    void stride() {
-        if (isReverse) {
-            for (int i=7; i>=0; i--) {
-                strideStage(i);
-            }
-        } else {
-            for (int i=0; i<8; i++) {
-                strideStage(i);
-            }
+    void takeStep() {
+        for (int i=0; i<8; i++) {
+            while (takeStride(i)) {}
         }
     }
 
-    void strideStage(int stage) {
-        switch(stage) {
+    bool takeStride(int ctrlCode) {
+        if (tick()) {
+            curStridePos = nextStridePos(curStridePos);
+            fireCtelCode();
+        }
+    }
+
+    int nextStridePos(int curPos) {
+        if (curPos+1 < STRIDE_PER_STEP && !curIsReverse) {
+            return curPos++;
+        } else if (curPos+1 >= STRIDE_PER_STEP && !curIsReverse) {
+            return 0;
+        } else if (curPos-1 >= 0 && curIsReverse) {
+            return curPos--;
+        } else if (curPos-1 < 0 && curIsReverse) {
+            return 7;
+        }
+    }
+
+    void fireCtelCode() {
+        switch(curPos) {
             case 0:
                 digitalWrite(IN1, LOW);
                 digitalWrite(IN2, LOW);
@@ -129,6 +171,6 @@ private:
             break;
         }
     }
-}
+};
 
 #endif

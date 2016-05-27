@@ -23,7 +23,7 @@ public:
         pinMode(IN4, OUTPUT);
     }
 
-    BYJ48(int in1, int in2, int in3,                          in4) {
+    BYJ48(int in1, int in2, int in3,int in4) {
         IN1 = in1;
         IN2 = in2;
         IN3 = in3;
