@@ -48,17 +48,21 @@ public:
         Serial.println(stride_delay);
     }
 
-    void step(int number_of_steps) {
-        int stepToTake = abs(number_of_steps);
+    void setStep(int number_of_steps) {
+        strideToTake += abs(number_of_steps)*STRIDE_PER_STEP;
 
         if (number_of_steps > 0) {
             curIsReverse = false;
         } else {
             curIsReverse = true;
         }
+    }
 
-        while (stepRemain > 0) {
-            takeStep();
+    void move(int stride) {
+        while(stride>0 && strideToTake>0) {
+            if (takeStride(int ctrlCode)) {
+                stride--;
+            }
         }
     }
 
@@ -71,6 +75,7 @@ private:
     bool curIsReverse;
     unsigned long lastTick;
     int curStridePos;
+    int strideToTake;
 
 
     void initPin() {
@@ -88,16 +93,14 @@ private:
         }
     }
 
-    void takeStep() {
-        for (int i=0; i<8; i++) {
-            while (takeStride(i)) {}
-        }
-    }
-
-    bool takeStride(int ctrlCode) {
+    bool takeStride() {
         if (tick()) {
             curStridePos = nextStridePos(curStridePos);
             fireCtelCode();
+            strideToTake--;
+            return true;
+        } else {
+            return false;
         }
     }
 
