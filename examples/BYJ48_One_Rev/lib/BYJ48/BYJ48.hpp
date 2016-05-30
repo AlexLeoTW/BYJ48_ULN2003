@@ -60,7 +60,7 @@ public:
 
     void move(int stride) {
         while(stride>0 && strideToTake>0) {
-            if (takeStride(int ctrlCode)) {
+            if (takeStride()) {
                 stride--;
             }
         }
@@ -117,7 +117,7 @@ private:
     }
 
     void fireCtelCode() {
-        switch(curPos) {
+        switch(curStridePos) {
             case 0:
                 digitalWrite(IN1, LOW);
                 digitalWrite(IN2, LOW);
