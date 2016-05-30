@@ -27,6 +27,7 @@ public:
         stride_delay = 2;
         curIsReverse = false;
         curStridePos = 0;
+        strideToTake = 0;
 
         initPin();
     }
@@ -39,12 +40,13 @@ public:
         stride_delay = 2;
         curIsReverse = false;
         curStridePos = 0;
+        strideToTake = 0;
 
         initPin();
     }
 
     void setSpeed(int targetRPM) {
-        stride_delay = 60 * 1000000 / STEP_PER_REV / STRIDE_PER_STEP / targetRPM;
+        stride_delay = 60L * 1000L / STEP_PER_REV / STRIDE_PER_STEP / targetRPM;
         Serial.println(stride_delay);
     }
 
@@ -59,34 +61,23 @@ public:
     }
 
     void move(int stride) {
+        Serial.print("move(");
+        Serial.print(stride);
+        Serial.println(")");
+        Serial.print(strideToTake);
+        Serial.println(" strides to take");
+
         while(stride>0 && strideToTake>0) {
             if (takeStride()) {
+                delay(stride_delay);
                 stride--;
             }
         }
     }
 
-private:
-    int IN1;    // = 8
-    int IN2;    // = 9
-    int IN3;    // = 10
-    int IN4;    // = 11
-    int stride_delay;
-    bool curIsReverse;
-    unsigned long lastTick;
-    int curStridePos;
-    int strideToTake;
-
-
-    void initPin() {
-        pinMode(IN1, OUTPUT);
-        pinMode(IN2, OUTPUT);
-        pinMode(IN3, OUTPUT);
-        pinMode(IN4, OUTPUT);
-    }
-
     bool tick() {
         if (micros() - lastTick >= stride_delay) {
+            lastTick = micros();
             return true;
         } else {
             return false;
@@ -104,15 +95,37 @@ private:
         }
     }
 
+private:
+    int IN1;    // = 8
+    int IN2;    // = 9
+    int IN3;    // = 10
+    int IN4;    // = 11
+    unsigned long stride_delay;
+    bool curIsReverse;
+    unsigned long lastTick;
+    int curStridePos;
+    int strideToTake;
+
+
+    void initPin() {
+        pinMode(IN1, OUTPUT);
+        pinMode(IN2, OUTPUT);
+        pinMode(IN3, OUTPUT);
+        pinMode(IN4, OUTPUT);
+    }
+
     int nextStridePos(int curPos) {
         if (curPos+1 < STRIDE_PER_STEP && !curIsReverse) {
-            return curPos++;
+            return curPos+1;
         } else if (curPos+1 >= STRIDE_PER_STEP && !curIsReverse) {
             return 0;
         } else if (curPos-1 >= 0 && curIsReverse) {
-            return curPos--;
+            return curPos-1;
         } else if (curPos-1 < 0 && curIsReverse) {
             return 7;
+        } else {
+            Serial.print("ERROR @");
+            Serial.println(curPos);
         }
     }
 
