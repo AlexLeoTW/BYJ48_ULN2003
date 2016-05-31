@@ -25,7 +25,6 @@ public:
         IN3 = 10;
         IN4 = 11;
         stride_delay = 2;
-        curIsReverse = false;
         curStridePos = 0;
         strideToTake = 0;
 
@@ -38,7 +37,6 @@ public:
         IN3 = in3;
         IN4 = in4;
         stride_delay = 2;
-        curIsReverse = false;
         curStridePos = 0;
         strideToTake = 0;
 
@@ -47,25 +45,19 @@ public:
 
     void setSpeed(int targetRPM) {
         stride_delay = 60L * 1000L / STEP_PER_REV / STRIDE_PER_STEP / targetRPM;
-        Serial.println(stride_delay);
+        //Serial.println(stride_delay);
     }
 
     void setStep(int number_of_steps) {
-        strideToTake += abs(number_of_steps)*STRIDE_PER_STEP;
-
-        if (number_of_steps > 0) {
-            curIsReverse = false;
-        } else {
-            curIsReverse = true;
-        }
+        strideToTake += number_of_steps*STRIDE_PER_STEP;
     }
 
     void move(int stride) {
-        Serial.print("move(");
-        Serial.print(stride);
-        Serial.println(")");
-        Serial.print(strideToTake);
-        Serial.println(" strides to take");
+        //Serial.print("move(");
+        //Serial.print(stride);
+        //Serial.println(")");
+        //Serial.print(strideToTake);
+        //Serial.println(" strides to take");
 
         while(stride>0 && strideToTake>0) {
             if (takeStride()) {
@@ -101,7 +93,6 @@ private:
     int IN3;    // = 10
     int IN4;    // = 11
     unsigned long stride_delay;
-    bool curIsReverse;
     unsigned long lastTick;
     int curStridePos;
     int strideToTake;
@@ -115,13 +106,13 @@ private:
     }
 
     int nextStridePos(int curPos) {
-        if (curPos+1 < STRIDE_PER_STEP && !curIsReverse) {
+        if (curPos+1 < STRIDE_PER_STEP && strideToTake > 0) {
             return curPos+1;
-        } else if (curPos+1 >= STRIDE_PER_STEP && !curIsReverse) {
+        } else if (curPos+1 >= STRIDE_PER_STEP && strideToTake > 0) {
             return 0;
-        } else if (curPos-1 >= 0 && curIsReverse) {
+        } else if (curPos-1 >= 0 && strideToTake < 0) {
             return curPos-1;
-        } else if (curPos-1 < 0 && curIsReverse) {
+        } else if (curPos-1 < 0 && strideToTake < 0) {
             return 7;
         } else {
             Serial.print("ERROR @");
