@@ -13,8 +13,9 @@
 #define BYJ48_hpp
 
 #include "Arduino.h"
-#define STEP_PER_REV 512
-#define STRIDE_PER_STEP 8
+#define STEP_PER_REV 64
+#define GEAR_RATIO 64
+#define CW_DIRETION_CNT 8
 
 class BYJ48 {
 
@@ -24,9 +25,9 @@ public:
         IN2 = 9;
         IN3 = 10;
         IN4 = 11;
-        stride_delay = 2;
-        curStridePos = 0;
-        strideToTake = 0;
+        strideDelayMicros = 2;
+        curStepPos = 0;
+        stepsToTake = 0;
 
         initPin();
     }
@@ -36,39 +37,24 @@ public:
         IN2 = in2;
         IN3 = in3;
         IN4 = in4;
-        stride_delay = 2;
-        curStridePos = 0;
-        strideToTake = 0;
+        strideDelayMicros = 2;
+        curStepPos = 0;
+        stepsToTake = 0;
 
         initPin();
     }
 
     void setSpeed(int targetRPM) {
-        stride_delay = 60L * 1000L / STEP_PER_REV / STRIDE_PER_STEP / targetRPM;
-        //Serial.println(stride_delay);
+        strideDelayMicros = 60L * 1000000L / STEP_PER_REV / GEAR_RATIO / targetRPM;
+        Serial.println(strideDelayMicros);
     }
 
-    void setStep(int number_of_steps) {
-        strideToTake += number_of_steps*STRIDE_PER_STEP;
-    }
-
-    void move(int stride) {
-        //Serial.print("move(");
-        //Serial.print(stride);
-        //Serial.println(")");
-        //Serial.print(strideToTake);
-        //Serial.println(" strides to take");
-
-        while(stride>0 && strideToTake>0) {
-            if (takeStride()) {
-                delay(stride_delay);
-                stride--;
-            }
-        }
+    void addStep(int number_of_steps) {
+        stepsToTake += number_of_steps*GEAR_RATIO;
     }
 
     bool tick() {
-        if (micros() - lastTick >= stride_delay) {
+        if (micros() - lastTick >= strideDelayMicros) {
             lastTick = micros();
             return true;
         } else {
@@ -76,11 +62,32 @@ public:
         }
     }
 
-    bool takeStride() {
-        if (tick()) {
-            curStridePos = nextStridePos(curStridePos);
-            fireCtelCode();
-            strideToTake--;
+    void revSync(int step) {
+        step *= GEAR_RATIO;
+
+        Serial.print("move(");
+        Serial.print(step);
+        Serial.println(")");
+        Serial.print(stepsToTake);
+        Serial.println(" steps to take");
+
+        while(step>0 && stepsToTake!=0) {
+            if (rev()) {
+                delayMicroseconds(strideDelayMicros);
+                step--;
+            }
+        }
+    }
+
+    bool rev() {
+        if (tick() && stepsToTake != 0) {
+            curStepPos = nextPos(curStepPos);
+            fireCtelCode(curStepPos);
+            if (stepsToTake > 0) {
+                stepsToTake--;
+            } else {
+                stepsToTake++;
+            }
             return true;
         } else {
             return false;
@@ -92,10 +99,10 @@ private:
     int IN2;    // = 9
     int IN3;    // = 10
     int IN4;    // = 11
-    unsigned long stride_delay;
+    unsigned long strideDelayMicros;
     unsigned long lastTick;
-    int curStridePos;
-    int strideToTake;
+    int curStepPos;
+    int stepsToTake;
 
 
     void initPin() {
@@ -105,14 +112,14 @@ private:
         pinMode(IN4, OUTPUT);
     }
 
-    int nextStridePos(int curPos) {
-        if (curPos+1 < STRIDE_PER_STEP && strideToTake > 0) {
+    int nextPos(int curPos) {
+        if (curPos+1 < CW_DIRETION_CNT && stepsToTake > 0) {
             return curPos+1;
-        } else if (curPos+1 >= STRIDE_PER_STEP && strideToTake > 0) {
+        } else if (curPos+1 >= CW_DIRETION_CNT && stepsToTake > 0) {
             return 0;
-        } else if (curPos-1 >= 0 && strideToTake < 0) {
+        } else if (curPos-1 >= 0 && stepsToTake < 0) {
             return curPos-1;
-        } else if (curPos-1 < 0 && strideToTake < 0) {
+        } else if (curPos-1 < 0 && stepsToTake < 0) {
             return 7;
         } else {
             Serial.print("ERROR @");
@@ -120,8 +127,8 @@ private:
         }
     }
 
-    void fireCtelCode() {
-        switch(curStridePos) {
+    void fireCtelCode(int stepPos) {
+        switch(stepPos) {
             case 0:
                 digitalWrite(IN1, LOW);
                 digitalWrite(IN2, LOW);
